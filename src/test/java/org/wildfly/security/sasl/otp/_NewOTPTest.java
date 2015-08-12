@@ -58,7 +58,6 @@ import javax.security.sasl.SaslServer;
 import javax.security.sasl.SaslServerFactory;
 
 import org.junit.After;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.wildfly.security.auth.callback.CallbackUtil;
@@ -546,59 +545,64 @@ public class _NewOTPTest extends BaseTestCase {
     }
 
     @Test
-    @Ignore("This can't work until we are able to store the updated timeout somewhere")
     public void testMultipleSimultaneousAuthenticationSessions() throws Exception {
-        /*
-        final SaslServerFactory serverFactory = obtainSaslServerFactory(OTPSaslServerFactory.class);
-        assertNotNull(serverFactory);
+        final String algorithm = ALGORITHM_OTP_MD5;
         final SaslClientFactory clientFactory = obtainSaslClientFactory(OTPSaslClientFactory.class);
         assertNotNull(clientFactory);
 
-        PasswordFactory passwordFactory = PasswordFactory.getInstance(ALGORITHM_OTP_MD5);
+        PasswordFactory passwordFactory = PasswordFactory.getInstance(algorithm);
         final Password password = passwordFactory.generatePassword(new OneTimePasswordSpec(CodePointIterator.ofString("505d889f90085847").hexDecode().drain(),
                 "ke1234".getBytes(StandardCharsets.US_ASCII), 500));
         OneTimePassword expectedUpdatedPassword = (OneTimePassword) passwordFactory.generatePassword(new OneTimePasswordSpec(CodePointIterator.ofString("5bf075d9959d036f").hexDecode().drain(),
                 "ke1234".getBytes(StandardCharsets.US_ASCII), 499));
-        final SaslServer saslServer1 = serverFactory.createSaslServer(SaslMechanismInformation.Names.OTP, "test", "testserver1.example.com",
-                Collections.<String, Object>emptyMap(), new OTPServerCallbackHandler(password));
-        final SaslServer saslServer2 = serverFactory.createSaslServer(SaslMechanismInformation.Names.OTP, "test", "testserver1.example.com",
-                Collections.<String, Object>emptyMap(), new OTPServerCallbackHandler(password));
+        final SaslServerBuilder.BuilderReference<SecurityDomain> securityDomainReference = new SaslServerBuilder.BuilderReference<>();
+        final SaslServerBuilder.BuilderReference<Closeable> closeableReference = new SaslServerBuilder.BuilderReference<>();
 
-        final SaslClient saslClient1 = clientFactory.createSaslClient(new String[] { SaslMechanismInformation.Names.OTP }, null, "test", "testserver1.example.com",
-                Collections.<String, Object>emptyMap(), new OTPClientCallbackHandler(null, "BOND FOGY DRAB NE RISE MART"));
-        final SaslClient saslClient2 = clientFactory.createSaslClient(new String[] { SaslMechanismInformation.Names.OTP }, null, "test", "testserver1.example.com",
-                Collections.<String, Object>emptyMap(), new OTPClientCallbackHandler(null, "BOND FOGY DRAB NE RISE MART"));
-
-        byte[] message1 = saslClient1.evaluateChallenge(new byte[0]);
-        assertFalse(saslClient1.isComplete());
-        assertFalse(saslServer1.isComplete());
-
-        byte[] message2 = saslClient2.evaluateChallenge(new byte[0]);
-        assertFalse(saslClient2.isComplete());
-        assertFalse(saslServer2.isComplete());
-
-        message1 = saslServer1.evaluateResponse(message1);
-        assertEquals("otp-md5 499 ke1234 ext", new String(message1, StandardCharsets.UTF_8));
-        assertFalse(saslServer1.isComplete());
-        assertFalse(saslClient1.isComplete());
-
+        final SaslServerBuilder serverBuilder1 = createSaslServerBuilder(password, closeableReference, securityDomainReference);
         try {
-            message2 = saslServer2.evaluateResponse(message2);
-            fail("Expected SaslException not thrown");
-        } catch (SaslException expected) {
+            final SaslServer saslServer1 = serverBuilder1.build();
+            final SaslServer saslServer2 = serverBuilder1.copy(true).build();
+
+            final SaslClient saslClient1 = clientFactory.createSaslClient(new String[]{SaslMechanismInformation.Names.OTP}, null, "test", "testserver1.example.com",
+                    Collections.<String, Object>emptyMap(), new OTPClientCallbackHandler(null, "BOND FOGY DRAB NE RISE MART"));
+            final SaslClient saslClient2 = clientFactory.createSaslClient(new String[]{SaslMechanismInformation.Names.OTP}, null, "test", "testserver1.example.com",
+                    Collections.<String, Object>emptyMap(), new OTPClientCallbackHandler(null, "BOND FOGY DRAB NE RISE MART"));
+
+            byte[] message1 = saslClient1.evaluateChallenge(new byte[0]);
+            assertFalse(saslClient1.isComplete());
+            assertFalse(saslServer1.isComplete());
+
+            byte[] message2 = saslClient2.evaluateChallenge(new byte[0]);
+            assertFalse(saslClient2.isComplete());
+            assertFalse(saslServer2.isComplete());
+
+            message1 = saslServer1.evaluateResponse(message1);
+            assertEquals("otp-md5 499 ke1234 ext", new String(message1, StandardCharsets.UTF_8));
+            assertFalse(saslServer1.isComplete());
+            assertFalse(saslClient1.isComplete());
+
+            try {
+                message2 = saslServer2.evaluateResponse(message2);
+                fail("Expected SaslException not thrown");
+            } catch (SaslException expected) {
+            }
+
+            // The first authentication attempt should still succeed
+            message1 = saslClient1.evaluateChallenge(message1);
+            assertEquals("word:BOND FOGY DRAB NE RISE MART", new String(message1, StandardCharsets.UTF_8));
+            assertTrue(saslClient1.isComplete());
+            assertFalse(saslServer1.isComplete());
+
+            message1 = saslServer1.evaluateResponse(message1);
+            assertTrue(saslServer1.isComplete());
+            assertNull(message1);
+            assertEquals("userName", saslServer1.getAuthorizationID());
+
+            //Check the password is updated
+            checkPassword(securityDomainReference, "userName", expectedUpdatedPassword, algorithm);
+        } finally {
+            closeableReference.getReference().close();
         }
-
-        // The first authentication attempt should still succeed
-        message1 = saslClient1.evaluateChallenge(message1);
-        assertEquals("word:BOND FOGY DRAB NE RISE MART", new String(message1, StandardCharsets.UTF_8));
-        assertTrue(saslClient1.isComplete());
-        assertFalse(saslServer1.isComplete());
-
-        message1 = saslServer1.evaluateResponse(message1);
-        assertTrue(saslServer1.isComplete());
-        assertNull(message1);
-        assertEquals("userName", saslServer1.getAuthorizationID());
-        */
     }
 
 
@@ -837,8 +841,8 @@ public class _NewOTPTest extends BaseTestCase {
         }
     }
 
-    private SaslServer createSaslServer(Password password, BuilderReference<Closeable> closeableReference, BuilderReference<SecurityDomain> securityDomainReference) throws IOException {
-        SaslServer saslServer = new SaslServerBuilder(OTPSaslServerFactory.class, SaslMechanismInformation.Names.OTP)
+    private SaslServerBuilder createSaslServerBuilder(Password password, BuilderReference<Closeable> closeableReference, BuilderReference<SecurityDomain> securityDomainReference) {
+        SaslServerBuilder builder = new SaslServerBuilder(OTPSaslServerFactory.class, SaslMechanismInformation.Names.OTP)
                 .setModifiableRealm()
                 .setUserName("userName")
                 .setPassword(password)
@@ -846,7 +850,12 @@ public class _NewOTPTest extends BaseTestCase {
                 .setProtocol("test")
                 .setServerName("testserver1.example.com")
                 .registerCloseableReference(closeableReference)
-                .registerSecurityDomainReference(securityDomainReference)
+                .registerSecurityDomainReference(securityDomainReference);
+        return builder;
+    }
+
+    private SaslServer createSaslServer(Password password, BuilderReference<Closeable> closeableReference, BuilderReference<SecurityDomain> securityDomainReference) throws IOException {
+        SaslServer saslServer = createSaslServerBuilder(password, closeableReference, securityDomainReference)
                 .build();
         assertFalse(saslServer.isComplete());
         return saslServer;

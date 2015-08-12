@@ -32,6 +32,7 @@ import java.nio.file.Paths;
 import java.security.Permissions;
 import java.security.spec.KeySpec;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 import javax.security.sasl.SaslServer;
@@ -76,6 +77,7 @@ public class SaslServerBuilder {
     private String serverName;
     private boolean dontAssertBuiltServer;
 
+    private SecurityDomain securityDomain;
     private BuilderReference<Closeable> closeableReference;
     private BuilderReference<SecurityDomain> securityDomainReference;
 
@@ -83,6 +85,33 @@ public class SaslServerBuilder {
         this.serverFactoryClass = serverFactoryClass;
         this.mechanismName = mechanismName;
     }
+
+    public SaslServerBuilder copy(boolean keepDomain) {
+        if (securityDomain == null && keepDomain) {
+            throw new IllegalStateException("Can only copy a built server when keeping domain");
+        }
+        SaslServerBuilder copy = new SaslServerBuilder(serverFactoryClass, mechanismName);
+        copy.username = username;
+        copy.password = password;
+        copy.realmName = realmName;
+        copy.defaultRealmName = defaultRealmName;
+        copy.modifiableRealm = modifiableRealm;
+        if (permissionsMap != null) {
+            copy.permissionsMap = new HashMap<>(permissionsMap);
+        }
+        if (properties != null) {
+            copy.properties = new HashMap<>(properties);
+        }
+        copy.bindingTypeAndData = bindingTypeAndData;
+        copy.protocol = protocol;
+        copy.serverName = serverName;
+        copy.dontAssertBuiltServer = dontAssertBuiltServer;
+        if (keepDomain) {
+            copy.securityDomain = securityDomain;
+        }
+        return copy;
+    }
+
 
     public SaslServerBuilder setUserName(String username) {
         this.username = username;
@@ -169,10 +198,13 @@ public class SaslServerBuilder {
         return this;
     }
 
+
     public SaslServer build() throws IOException {
-        SecurityDomain domain = createSecurityDomain();
+        if (securityDomain == null) {
+            securityDomain = createSecurityDomain();
+        }
         if (securityDomainReference != null) {
-            securityDomainReference.setReference(domain);
+            securityDomainReference.setReference(securityDomain);
         }
         SaslServerFactory factory = obtainSaslServerFactory(serverFactoryClass);
         if (properties != null && properties.size() > 0) {
@@ -187,12 +219,13 @@ public class SaslServerBuilder {
         if (serverName != null) {
             factory = new ServerNameSaslServerFactory(factory, serverName);
         }
-        SaslServer server = domain.createNewAuthenticationContext().createSaslServer(factory, mechanismName);
+        SaslServer server = securityDomain.createNewAuthenticationContext().createSaslServer(factory, mechanismName);
         if (!dontAssertBuiltServer) {
             Assert.assertNotNull(server);
         }
         return server;
     }
+
 
     private SecurityDomain createSecurityDomain() throws IOException {
         final SecurityDomain.Builder domainBuilder = SecurityDomain.builder();
