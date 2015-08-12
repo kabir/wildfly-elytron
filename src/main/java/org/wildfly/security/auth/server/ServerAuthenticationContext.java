@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
 import java.security.spec.InvalidKeySpecException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -53,12 +54,15 @@ import org.wildfly.security.auth.callback.AuthenticationCompleteCallback;
 import org.wildfly.security.auth.callback.CallbackUtil;
 import org.wildfly.security.auth.callback.CredentialCallback;
 import org.wildfly.security.auth.callback.CredentialParameterCallback;
+import org.wildfly.security.auth.callback.CredentialUpdateCallback;
 import org.wildfly.security.auth.callback.CredentialVerifyCallback;
 import org.wildfly.security.auth.callback.FastUnsupportedCallbackException;
 import org.wildfly.security.auth.callback.PasswordVerifyCallback;
 import org.wildfly.security.auth.callback.PeerPrincipalCallback;
 import org.wildfly.security.auth.callback.SecurityIdentityCallback;
 import org.wildfly.security.auth.callback.SocketAddressCallback;
+import org.wildfly.security.auth.callback.TimeoutCallback;
+import org.wildfly.security.auth.callback.TimeoutUpdateCallback;
 import org.wildfly.security.auth.permission.RunAsPrincipalPermission;
 import org.wildfly.security.auth.principal.NamePrincipal;
 import org.wildfly.security.authz.AuthorizationIdentity;
@@ -509,6 +513,10 @@ public final class ServerAuthenticationContext {
         return stateRef.get().verifyCredential(credential);
     }
 
+    public RealmIdentity getRealmIdentity() throws RealmUnavailableException {
+        return stateRef.get().getRealmIdentity();
+    }
+
     CallbackHandler createAnonymousCallbackHandler() {
         return new CallbackHandler() {
             @Override
@@ -677,6 +685,24 @@ public final class ServerAuthenticationContext {
                     handleOne(callbacks, idx + 1);
                 } else if (callback instanceof RealmCallback) {
                     handleOne(callbacks, idx + 1);
+                } else if (callback instanceof TimeoutCallback) {
+                    TimeoutCallback timeoutCallback = (TimeoutCallback) callback;
+                    //TODO where should this data be stored?
+                    timeoutCallback.setTimeout(Instant.now().getEpochSecond());
+                    handleOne(callbacks, idx + 1);
+                } else if (callback instanceof TimeoutUpdateCallback) {
+                    //TODO store this somewhere
+                    handleOne(callbacks, idx + 1);
+                } else if (callback instanceof CredentialUpdateCallback) {
+                    CredentialUpdateCallback credentialUpdateCallback = (CredentialUpdateCallback)callback;
+                    RealmIdentity ri = getRealmIdentity();
+                    if (ri instanceof ModifiableRealmIdentity) {
+                        ModifiableRealmIdentity mri = (ModifiableRealmIdentity)ri;
+                        mri.setCredentials(Collections.singletonList(credentialUpdateCallback.getCredential()));
+                        handleOne(callbacks, idx + 1);
+                        return;
+                    }
+                    throw new FastUnsupportedCallbackException(callback);
                 } else {
                     CallbackUtil.unsupported(callback);
                 }

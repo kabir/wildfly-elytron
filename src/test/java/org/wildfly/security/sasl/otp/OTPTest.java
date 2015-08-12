@@ -18,10 +18,20 @@
 
 package org.wildfly.security.sasl.otp;
 
-import static org.junit.Assert.*;
-import static org.wildfly.security.password.interfaces.OneTimePassword.*;
-import static org.wildfly.security.sasl.otp.OTP.*;
-import static org.wildfly.security.sasl.otp.OTPUtil.*;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.wildfly.security.password.interfaces.OneTimePassword.ALGORITHM_OTP_MD5;
+import static org.wildfly.security.password.interfaces.OneTimePassword.ALGORITHM_OTP_SHA1;
+import static org.wildfly.security.sasl.otp.OTP.HEX_RESPONSE;
+import static org.wildfly.security.sasl.otp.OTP.INIT_HEX_RESPONSE;
+import static org.wildfly.security.sasl.otp.OTP.INIT_WORD_RESPONSE;
+import static org.wildfly.security.sasl.otp.OTP.WORD_RESPONSE;
+import static org.wildfly.security.sasl.otp.OTPUtil.getResponseTypeChoiceIndex;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
@@ -42,10 +52,6 @@ import javax.security.sasl.SaslException;
 import javax.security.sasl.SaslServer;
 import javax.security.sasl.SaslServerFactory;
 
-import mockit.Mock;
-import mockit.MockUp;
-import mockit.integration.junit4.JMockit;
-
 import org.junit.After;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -65,6 +71,10 @@ import org.wildfly.security.sasl.WildFlySasl;
 import org.wildfly.security.sasl.test.BaseTestCase;
 import org.wildfly.security.sasl.util.SaslMechanismInformation;
 import org.wildfly.security.util.CodePointIterator;
+
+import mockit.Mock;
+import mockit.MockUp;
+import mockit.integration.junit4.JMockit;
 
 /**
  * Client and server side tests for the OTP SASL mechanism. The expected results for
@@ -947,7 +957,7 @@ public class OTPTest extends BaseTestCase {
         }
     }
 
-    private static final String[] ALTERNATE_DICTIONARY = new String[] {
+    static final String[] ALTERNATE_DICTIONARY = new String[] {
         "poel",   "qewn",   "xlob",   "preg",   "qome",   "zarm",   "sas",
         "oerk",   "sct",    "seb",    "ilan",   "wct",    "bp",     "sft",
         "beys",   "rela",   "iieu",   "oive",   "ncme",   "xila",   "znch",
