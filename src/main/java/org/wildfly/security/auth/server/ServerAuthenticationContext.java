@@ -65,7 +65,9 @@ import org.wildfly.security.auth.callback.TimeoutCallback;
 import org.wildfly.security.auth.callback.TimeoutUpdateCallback;
 import org.wildfly.security.auth.permission.RunAsPrincipalPermission;
 import org.wildfly.security.auth.principal.NamePrincipal;
+import org.wildfly.security.authz.Attributes;
 import org.wildfly.security.authz.AuthorizationIdentity;
+import org.wildfly.security.authz.MapAttributes;
 import org.wildfly.security.http.HttpServerAuthenticationMechanism;
 import org.wildfly.security.http.HttpServerAuthenticationMechanismFactory;
 import org.wildfly.security.password.Password;
@@ -89,6 +91,9 @@ public final class ServerAuthenticationContext {
 
     private final SecurityDomain domain;
     private final AtomicReference<State> stateRef = new AtomicReference<>(INITIAL);
+
+    //TODO Find a better home for this constant
+    public final String REALM_IDENTITY_TIMEOUT = "realm-identity-timeout";
 
     ServerAuthenticationContext(final SecurityDomain domain) {
         this.domain = domain;
@@ -517,6 +522,14 @@ public final class ServerAuthenticationContext {
         return stateRef.get().getRealmIdentity();
     }
 
+    public ModifiableRealmIdentity getModifiableRealmIdentity() throws RealmUnavailableException {
+        RealmIdentity ri = getRealmIdentity();
+        if (ri instanceof ModifiableRealmIdentity == false) {
+            throw ElytronMessages.log.realmIsNotModifiable(ri.getName());
+        }
+        return (ModifiableRealmIdentity) ri;
+    }
+
     CallbackHandler createAnonymousCallbackHandler() {
         return new CallbackHandler() {
             @Override
@@ -687,22 +700,27 @@ public final class ServerAuthenticationContext {
                     handleOne(callbacks, idx + 1);
                 } else if (callback instanceof TimeoutCallback) {
                     TimeoutCallback timeoutCallback = (TimeoutCallback) callback;
-                    //TODO where should this data be stored?
-                    timeoutCallback.setTimeout(Instant.now().getEpochSecond());
+                    RealmIdentity ri = getRealmIdentity();
+                    String str = ri.getAttributes().get(REALM_IDENTITY_TIMEOUT, 0);
+                    long timeout = str == null ? Instant.now().getEpochSecond() : Long.valueOf(str);
+                    timeoutCallback.setTimeout(timeout);
                     handleOne(callbacks, idx + 1);
                 } else if (callback instanceof TimeoutUpdateCallback) {
-                    //TODO store this somewhere
+                    TimeoutUpdateCallback timeoutUpdateCallback = (TimeoutUpdateCallback)callback;
+                    ModifiableRealmIdentity ri = getModifiableRealmIdentity();
+                    Attributes attributes = ri.getAttributes();
+                    MapAttributes newAttributes = new MapAttributes(attributes);
+                    newAttributes.removeFirst(REALM_IDENTITY_TIMEOUT);
+                    newAttributes.addFirst(REALM_IDENTITY_TIMEOUT, String.valueOf(timeoutUpdateCallback.getTimeout()));
+                    ri.setAttributes(newAttributes);
                     handleOne(callbacks, idx + 1);
                 } else if (callback instanceof CredentialUpdateCallback) {
                     CredentialUpdateCallback credentialUpdateCallback = (CredentialUpdateCallback)callback;
-                    RealmIdentity ri = getRealmIdentity();
-                    if (ri instanceof ModifiableRealmIdentity) {
-                        ModifiableRealmIdentity mri = (ModifiableRealmIdentity)ri;
-                        mri.setCredentials(Collections.singletonList(credentialUpdateCallback.getCredential()));
-                        handleOne(callbacks, idx + 1);
-                        return;
-                    }
-                    throw new FastUnsupportedCallbackException(callback);
+                    ModifiableRealmIdentity ri = getModifiableRealmIdentity();
+                    // TODO add one, don't overwrite everything (Fara is invesigating doing this as part of the verification,
+                    //alternatively we might add a ModifiableRealmIdentity.setCredential() method
+                    ri.setCredentials(Collections.singletonList(credentialUpdateCallback.getCredential()));
+                    handleOne(callbacks, idx + 1);
                 } else {
                     CallbackUtil.unsupported(callback);
                 }
