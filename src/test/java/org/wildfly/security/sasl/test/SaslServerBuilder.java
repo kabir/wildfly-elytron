@@ -305,10 +305,6 @@ public class SaslServerBuilder {
         }
     };
 
-    public interface ExtraDecorator {
-        SaslServerFactory decorate(SaslServerFactory factory);
-    }
-
     public static class BuilderReference<T> {
         private T ref;
 

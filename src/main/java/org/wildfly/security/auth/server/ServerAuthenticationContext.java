@@ -717,7 +717,7 @@ public final class ServerAuthenticationContext {
                 } else if (callback instanceof CredentialUpdateCallback) {
                     CredentialUpdateCallback credentialUpdateCallback = (CredentialUpdateCallback)callback;
                     ModifiableRealmIdentity ri = getModifiableRealmIdentity();
-                    // TODO add one, don't overwrite everything (Fara is invesigating doing this as part of the verification,
+                    // TODO add one, don't overwrite everything (Fara is investigating doing this as part of the verification,
                     //alternatively we might add a ModifiableRealmIdentity.setCredential() method
                     ri.setCredentials(Collections.singletonList(credentialUpdateCallback.getCredential()));
                     handleOne(callbacks, idx + 1);

@@ -34,13 +34,9 @@ import static org.wildfly.security.sasl.otp.OTP.WORD_RESPONSE;
 import static org.wildfly.security.sasl.otp.OTPUtil.getResponseTypeChoiceIndex;
 
 import java.io.Closeable;
-import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -48,7 +44,6 @@ import java.util.Random;
 
 import javax.security.auth.callback.Callback;
 import javax.security.auth.callback.CallbackHandler;
-import javax.security.auth.callback.NameCallback;
 import javax.security.auth.callback.PasswordCallback;
 import javax.security.auth.callback.UnsupportedCallbackException;
 import javax.security.sasl.SaslClient;
@@ -60,9 +55,11 @@ import javax.security.sasl.SaslServerFactory;
 import org.junit.After;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.wildfly.security.auth.callback.CallbackUtil;
-import org.wildfly.security.auth.callback.ExtendedChoiceCallback;
 import org.wildfly.security.auth.callback.ParameterCallback;
+import org.wildfly.security.auth.client.AuthenticationConfiguration;
+import org.wildfly.security.auth.client.AuthenticationContext;
+import org.wildfly.security.auth.client.ClientUtils;
+import org.wildfly.security.auth.client.MatchRule;
 import org.wildfly.security.auth.server.RealmIdentity;
 import org.wildfly.security.auth.server.RealmUnavailableException;
 import org.wildfly.security.auth.server.SecurityDomain;
@@ -104,10 +101,6 @@ public class _NewOTPTest extends BaseTestCase {
     @Test
     public void testSimpleMD5AuthenticationWithPassPhrase() throws Exception {
         final String algorithm = ALGORITHM_OTP_MD5;
-        final Path root = Paths.get(".", "target", "test-domains", String.valueOf(System.currentTimeMillis())).normalize();
-        System.out.println(root.toAbsolutePath());
-        File file = Files.createDirectories(root).toFile();
-        file.deleteOnExit();
 
         final SaslClientFactory clientFactory = obtainSaslClientFactory(OTPSaslClientFactory.class);
         assertNotNull(clientFactory);
@@ -124,8 +117,11 @@ public class _NewOTPTest extends BaseTestCase {
         try {
             final SaslServer saslServer = createSaslServer(password, closeableReference, securityDomainReference);
 
+            final CallbackHandler handler =
+                    createClientCallbackHandler(algorithm, "userName", "This is a test.", ResponseFormat.PASSPHRASE, getResponseTypeChoiceIndex(HEX_RESPONSE),
+                        false, null, null, null);
             final SaslClient saslClient = clientFactory.createSaslClient(new String[]{SaslMechanismInformation.Names.OTP}, null, "test", "testserver1.example.com",
-                    Collections.<String, Object>emptyMap(), new OTPClientCallbackHandler("This is a test.", null, getResponseTypeChoiceIndex(HEX_RESPONSE)));
+                    Collections.<String, Object>emptyMap(), handler);
             assertNotNull(saslClient);
             assertTrue(saslClient instanceof OTPSaslClient);
             assertTrue(saslClient.hasInitialResponse());
@@ -174,8 +170,11 @@ public class _NewOTPTest extends BaseTestCase {
         try {
             final SaslServer saslServer = createSaslServer(password, closeableReference, securityDomainReference);
 
+            final CallbackHandler handler =
+                    createClientCallbackHandler(algorithm, "userName", "This is a test.", ResponseFormat.PASSPHRASE, getResponseTypeChoiceIndex(HEX_RESPONSE),
+                            false, null, null, null);
             final SaslClient saslClient = clientFactory.createSaslClient(new String[]{SaslMechanismInformation.Names.OTP}, null, "test", "testserver1.example.com",
-                    Collections.<String, Object>emptyMap(), new OTPClientCallbackHandler("This is a test.", null, getResponseTypeChoiceIndex(HEX_RESPONSE)));
+                    Collections.<String, Object>emptyMap(), handler);
             assertNotNull(saslClient);
             assertTrue(saslClient instanceof OTPSaslClient);
             assertTrue(saslClient.hasInitialResponse());
@@ -223,8 +222,12 @@ public class _NewOTPTest extends BaseTestCase {
         try {
             final SaslServer saslServer = createSaslServer(password, closeableReference, securityDomainReference);
 
-            final SaslClient saslClient = clientFactory.createSaslClient(new String[] { SaslMechanismInformation.Names.OTP }, null, "test", "testserver1.example.com",
-                    Collections.<String, Object>emptyMap(), new OTPClientCallbackHandler(null, "BOND FOGY DRAB NE RISE MART"));
+            final CallbackHandler handler =
+                    createClientCallbackHandler(algorithm, "userName", "BOND FOGY DRAB NE RISE MART", ResponseFormat.MULTIWORD, getResponseTypeChoiceIndex(WORD_RESPONSE),
+                            false, null, null, null);
+            final SaslClient saslClient = clientFactory.createSaslClient(new String[]{SaslMechanismInformation.Names.OTP}, null, "test", "testserver1.example.com",
+                    Collections.<String, Object>emptyMap(), handler);
+
             assertNotNull(saslClient);
             assertTrue(saslClient instanceof OTPSaslClient);
             assertTrue(saslClient.hasInitialResponse());
@@ -272,8 +275,12 @@ public class _NewOTPTest extends BaseTestCase {
         try {
             final SaslServer saslServer = createSaslServer(password, closeableReference, securityDomainReference);
 
-            final SaslClient saslClient = clientFactory.createSaslClient(new String[] { SaslMechanismInformation.Names.OTP }, null, "test", "testserver1.example.com",
-                    Collections.<String, Object>emptyMap(), new OTPClientCallbackHandler(null, "GAFF WAIT SKID GIG SKY EYED"));
+            final CallbackHandler handler =
+                    createClientCallbackHandler(algorithm, "userName", "GAFF WAIT SKID GIG SKY EYED", ResponseFormat.MULTIWORD, getResponseTypeChoiceIndex(WORD_RESPONSE),
+                            false, null, null, null);
+            final SaslClient saslClient = clientFactory.createSaslClient(new String[]{SaslMechanismInformation.Names.OTP}, null, "test", "testserver1.example.com",
+                    Collections.<String, Object>emptyMap(), handler);
+
             assertNotNull(saslClient);
             assertTrue(saslClient instanceof OTPSaslClient);
             assertTrue(saslClient.hasInitialResponse());
@@ -321,8 +328,12 @@ public class _NewOTPTest extends BaseTestCase {
         try {
             final SaslServer saslServer = createSaslServer(password, closeableReference, securityDomainReference);
 
-            final SaslClient saslClient = clientFactory.createSaslClient(new String[] { SaslMechanismInformation.Names.OTP }, null, "test", "testserver1.example.com",
-                Collections.<String, Object>emptyMap(), new OTPClientCallbackHandler("This is a test.", null, getResponseTypeChoiceIndex(INIT_HEX_RESPONSE)));
+            final CallbackHandler handler =
+                    createClientCallbackHandler(algorithm, "userName", "This is a test.", ResponseFormat.PASSPHRASE, getResponseTypeChoiceIndex(INIT_HEX_RESPONSE),
+                            false, null, "ke1235".getBytes(StandardCharsets.UTF_8), "3712dcb4aa5316c1");
+            final SaslClient saslClient = clientFactory.createSaslClient(new String[]{SaslMechanismInformation.Names.OTP}, null, "test", "testserver1.example.com",
+                    Collections.<String, Object>emptyMap(), handler);
+
             assertNotNull(saslClient);
             assertTrue(saslClient instanceof OTPSaslClient);
             assertTrue(saslClient.hasInitialResponse());
@@ -370,8 +381,12 @@ public class _NewOTPTest extends BaseTestCase {
         try {
             final SaslServer saslServer = createSaslServer(password, closeableReference, securityDomainReference);
 
-            final SaslClient saslClient = clientFactory.createSaslClient(new String[] { SaslMechanismInformation.Names.OTP }, null, "test", "testserver1.example.com",
-                    Collections.<String, Object>emptyMap(), new OTPClientCallbackHandler("This is a test.", null, getResponseTypeChoiceIndex(INIT_WORD_RESPONSE)));
+            final CallbackHandler handler =
+                    createClientCallbackHandler(algorithm, "userName", "This is a test.", ResponseFormat.PASSPHRASE, getResponseTypeChoiceIndex(INIT_WORD_RESPONSE),
+                            false, null, "ke1235".getBytes(StandardCharsets.UTF_8), "RED HERD NOW BEAN PA BURG");
+            final SaslClient saslClient = clientFactory.createSaslClient(new String[]{SaslMechanismInformation.Names.OTP}, null, "test", "testserver1.example.com",
+                    Collections.<String, Object>emptyMap(), handler);
+
             assertNotNull(saslClient);
             assertTrue(saslClient instanceof OTPSaslClient);
             assertTrue(saslClient.hasInitialResponse());
@@ -420,8 +435,11 @@ public class _NewOTPTest extends BaseTestCase {
         try {
             final SaslServer saslServer = createSaslServer(password, closeableReference, securityDomainReference);
 
-            final SaslClient saslClient = clientFactory.createSaslClient(new String[] { SaslMechanismInformation.Names.OTP }, null, "test", "testserver1.example.com",
-                    Collections.<String, Object>emptyMap(), new OTPClientCallbackHandler("This is a test.", null, true));
+            final CallbackHandler handler =
+                    createClientCallbackHandler(algorithm, "userName", "This is a test.", ResponseFormat.PASSPHRASE, -1,
+                            true, "My new pass phrase", null, null);
+            final SaslClient saslClient = clientFactory.createSaslClient(new String[]{SaslMechanismInformation.Names.OTP}, null, "test", "testserver1.example.com",
+                    Collections.<String, Object>emptyMap(), handler);
 
             byte[] message = saslClient.evaluateChallenge(new byte[0]);
             assertFalse(saslClient.isComplete());
@@ -468,8 +486,12 @@ public class _NewOTPTest extends BaseTestCase {
 
             Map<String, Object> props = new HashMap<String, Object>();
             props.put(WildFlySasl.OTP_ALTERNATE_DICTIONARY, OTPSaslClientFactory.dictionaryArrayToProperty(OTPTest.ALTERNATE_DICTIONARY));
-            final SaslClient saslClient = clientFactory.createSaslClient(new String[] { SaslMechanismInformation.Names.OTP }, null, "test", "testserver1.example.com",
-                    props, new OTPClientCallbackHandler(null, "sars zike zub sahn siar pft"));
+            final CallbackHandler handler =
+                    createClientCallbackHandler(algorithm, "userName", "sars zike zub sahn siar pft", ResponseFormat.MULTIWORD, getResponseTypeChoiceIndex(WORD_RESPONSE),
+                            false, null, null, null);
+            final SaslClient saslClient = clientFactory.createSaslClient(new String[]{SaslMechanismInformation.Names.OTP}, null, "test", "testserver1.example.com",
+                    props, handler);
+
 
             byte[] message = saslClient.evaluateChallenge(new byte[0]);
             message = saslServer.evaluateResponse(message);
@@ -515,8 +537,11 @@ public class _NewOTPTest extends BaseTestCase {
 
             Map<String, Object> props = new HashMap<String, Object>();
             props.put(WildFlySasl.OTP_ALTERNATE_DICTIONARY, OTPSaslClientFactory.dictionaryArrayToProperty(OTPTest.ALTERNATE_DICTIONARY));
-            final SaslClient saslClient = clientFactory.createSaslClient(new String[] { SaslMechanismInformation.Names.OTP }, null, "test", "testserver1.example.com",
-                    props, new OTPClientCallbackHandler("This is a test.", null));
+            final CallbackHandler handler =
+                    createClientCallbackHandler(algorithm, "userName", "This is a test.", ResponseFormat.PASSPHRASE, getResponseTypeChoiceIndex(WORD_RESPONSE),
+                            false, null, null, null);
+            final SaslClient saslClient = clientFactory.createSaslClient(new String[]{SaslMechanismInformation.Names.OTP}, null, "test", "testserver1.example.com",
+                    props, handler);
 
             byte[] message = saslClient.evaluateChallenge(new byte[0]);
             assertFalse(saslClient.isComplete());
@@ -563,10 +588,17 @@ public class _NewOTPTest extends BaseTestCase {
             final SaslServer saslServer1 = serverBuilder1.build();
             final SaslServer saslServer2 = serverBuilder1.copy(true).build();
 
+            final CallbackHandler handler1 =
+                    createClientCallbackHandler(algorithm, "userName", "BOND FOGY DRAB NE RISE MART", ResponseFormat.MULTIWORD, getResponseTypeChoiceIndex(WORD_RESPONSE),
+                            false, null, null, null);
             final SaslClient saslClient1 = clientFactory.createSaslClient(new String[]{SaslMechanismInformation.Names.OTP}, null, "test", "testserver1.example.com",
-                    Collections.<String, Object>emptyMap(), new OTPClientCallbackHandler(null, "BOND FOGY DRAB NE RISE MART"));
+                    Collections.emptyMap(), handler1);
+            final CallbackHandler handler2 =
+                    createClientCallbackHandler(algorithm, "userName", "BOND FOGY DRAB NE RISE MART", ResponseFormat.MULTIWORD, getResponseTypeChoiceIndex(WORD_RESPONSE),
+                            false, null, null, null);
             final SaslClient saslClient2 = clientFactory.createSaslClient(new String[]{SaslMechanismInformation.Names.OTP}, null, "test", "testserver1.example.com",
-                    Collections.<String, Object>emptyMap(), new OTPClientCallbackHandler(null, "BOND FOGY DRAB NE RISE MART"));
+                    Collections.emptyMap(), handler2);
+
 
             byte[] message1 = saslClient1.evaluateChallenge(new byte[0]);
             assertFalse(saslClient1.isComplete());
@@ -582,7 +614,7 @@ public class _NewOTPTest extends BaseTestCase {
             assertFalse(saslClient1.isComplete());
 
             try {
-                message2 = saslServer2.evaluateResponse(message2);
+                saslServer2.evaluateResponse(message2);
                 fail("Expected SaslException not thrown");
             } catch (SaslException expected) {
             }
@@ -610,18 +642,22 @@ public class _NewOTPTest extends BaseTestCase {
 
     @Test
     public void testAuthenticationWithWrongPassword() throws Exception {
+        final String algorithm = ALGORITHM_OTP_MD5;
         final SaslClientFactory clientFactory = obtainSaslClientFactory(OTPSaslClientFactory.class);
         assertNotNull(clientFactory);
 
-        PasswordFactory passwordFactory = PasswordFactory.getInstance(ALGORITHM_OTP_MD5);
+        PasswordFactory passwordFactory = PasswordFactory.getInstance(algorithm);
         final Password password = passwordFactory.generatePassword(new OneTimePasswordSpec(CodePointIterator.ofString("505d889f90085847").hexDecode().drain(),
                 "ke1234".getBytes(StandardCharsets.US_ASCII), 500));
         final SaslServerBuilder.BuilderReference<Closeable> closeableReference = new SaslServerBuilder.BuilderReference<>();
         try {
             final SaslServer saslServer = createSaslServer(password, closeableReference, null);
 
-            final SaslClient saslClient = clientFactory.createSaslClient(new String[] { SaslMechanismInformation.Names.OTP }, null, "test", "testserver1.example.com",
-                    Collections.<String, Object>emptyMap(), new OTPClientCallbackHandler(null, "TONE NELL RACY GRIN ROOM GELD")); // Wrong password
+            final CallbackHandler handler =
+                    createClientCallbackHandler(algorithm, "userName", "TONE NELL RACY GRIN ROOM GELD", ResponseFormat.MULTIWORD, getResponseTypeChoiceIndex(WORD_RESPONSE),
+                            false, null, null, null);
+            final SaslClient saslClient = clientFactory.createSaslClient(new String[]{SaslMechanismInformation.Names.OTP}, null, "test", "testserver1.example.com",
+                    Collections.<String, Object>emptyMap(), handler);
 
             byte[] message = saslClient.evaluateChallenge(new byte[0]);
             assertFalse(saslClient.isComplete());
@@ -648,25 +684,29 @@ public class _NewOTPTest extends BaseTestCase {
 
     @Test
     public void testAuthenticationWithWrongPasswordInInitResponse() throws Exception {
+        final String algorithm = ALGORITHM_OTP_MD5;
         final SaslClientFactory clientFactory = obtainSaslClientFactory(OTPSaslClientFactory.class);
         assertNotNull(clientFactory);
 
-        PasswordFactory passwordFactory = PasswordFactory.getInstance(ALGORITHM_OTP_MD5);
+        PasswordFactory passwordFactory = PasswordFactory.getInstance(algorithm);
         final Password password = passwordFactory.generatePassword(new OneTimePasswordSpec(CodePointIterator.ofString("505d889f90085847").hexDecode().drain(),
                 "ke1234".getBytes(StandardCharsets.US_ASCII), 500));
         final SaslServerBuilder.BuilderReference<Closeable> closeableReference = new SaslServerBuilder.BuilderReference<>();
         try {
             final SaslServer saslServer = createSaslServer(password, closeableReference, null);
 
-            final SaslClient saslClient = clientFactory.createSaslClient(new String[] { SaslMechanismInformation.Names.OTP }, null, "test", "testserver1.example.com",
-                    Collections.<String, Object>emptyMap(), new OTPClientCallbackHandler(null, "GAFF WAIT SKID GIG SKY EYED", getResponseTypeChoiceIndex(INIT_WORD_RESPONSE)));
+            final CallbackHandler handler =
+                    createClientCallbackHandler(algorithm, "userName", "GAFF WAIT SKID GIG SKY EYED", ResponseFormat.MULTIWORD, getResponseTypeChoiceIndex(WORD_RESPONSE),
+                            false, null, null, null);
+            final SaslClient saslClient = clientFactory.createSaslClient(new String[]{SaslMechanismInformation.Names.OTP}, null, "test", "testserver1.example.com",
+                    Collections.<String, Object>emptyMap(), handler);
 
             byte[] message = saslClient.evaluateChallenge(new byte[0]);
             message = saslServer.evaluateResponse(message);
             assertEquals("otp-md5 499 ke1234 ext", new String(message, StandardCharsets.UTF_8));
             message = saslClient.evaluateChallenge(message);
             try {
-                message = saslServer.evaluateResponse(message);
+                saslServer.evaluateResponse(message);
                 fail("Expected SaslException not thrown");
             } catch (SaslException expected) {
             }
@@ -677,18 +717,22 @@ public class _NewOTPTest extends BaseTestCase {
 
     @Test
     public void testAuthenticationWithInvalidNewPasswordInInitResponse() throws Exception {
+        final String algorithm = ALGORITHM_OTP_MD5;
         final SaslClientFactory clientFactory = obtainSaslClientFactory(OTPSaslClientFactory.class);
         assertNotNull(clientFactory);
 
-        PasswordFactory passwordFactory = PasswordFactory.getInstance(ALGORITHM_OTP_MD5);
+        PasswordFactory passwordFactory = PasswordFactory.getInstance(algorithm);
         final Password password = passwordFactory.generatePassword(new OneTimePasswordSpec(CodePointIterator.ofString("505d889f90085847").hexDecode().drain(),
                 "ke1234".getBytes(StandardCharsets.US_ASCII), 500));
         final SaslServerBuilder.BuilderReference<Closeable> closeableReference = new SaslServerBuilder.BuilderReference<>();
         try {
             final SaslServer saslServer = createSaslServer(password, closeableReference, null);
 
+            final CallbackHandler handler =
+                    createClientCallbackHandler(algorithm, "userName", "BOND FOGY DRAB NE RISE MART", ResponseFormat.MULTIWORD, getResponseTypeChoiceIndex(INIT_WORD_RESPONSE),
+                            false, null, null, null);
             final SaslClient saslClient = clientFactory.createSaslClient(new String[]{SaslMechanismInformation.Names.OTP}, null, "test", "testserver1.example.com",
-                    Collections.<String, Object>emptyMap(), new OTPClientCallbackHandler(null, "BOND FOGY DRAB NE RISE MART", getResponseTypeChoiceIndex(INIT_WORD_RESPONSE)));
+                    Collections.<String, Object>emptyMap(), handler);
 
             byte[] message = saslClient.evaluateChallenge(new byte[0]);
             message = saslServer.evaluateResponse(message);
@@ -708,23 +752,27 @@ public class _NewOTPTest extends BaseTestCase {
 
     @Test
     public void testAuthenticationWithInvalidPassPhrase() throws Exception {
+        final String algorithm = ALGORITHM_OTP_MD5;
         final SaslClientFactory clientFactory = obtainSaslClientFactory(OTPSaslClientFactory.class);
         assertNotNull(clientFactory);
 
-        PasswordFactory passwordFactory = PasswordFactory.getInstance(ALGORITHM_OTP_MD5);
+        PasswordFactory passwordFactory = PasswordFactory.getInstance(algorithm);
         final Password password = passwordFactory.generatePassword(new OneTimePasswordSpec(CodePointIterator.ofString("505d889f90085847").hexDecode().drain(),
                 "ke1234".getBytes(StandardCharsets.US_ASCII), 500));
         final SaslServerBuilder.BuilderReference<Closeable> closeableReference = new SaslServerBuilder.BuilderReference<>();
         try {
             final SaslServer saslServer = createSaslServer(password, closeableReference, null);
 
+            final CallbackHandler handler =
+                    createClientCallbackHandler(algorithm, "userName", "tooShort", ResponseFormat.PASSPHRASE, getResponseTypeChoiceIndex(HEX_RESPONSE),
+                            false, null, null, null);
             final SaslClient saslClient = clientFactory.createSaslClient(new String[]{SaslMechanismInformation.Names.OTP}, null, "test", "testserver1.example.com",
-                Collections.<String, Object>emptyMap(), new OTPClientCallbackHandler("tooShort", null, getResponseTypeChoiceIndex(HEX_RESPONSE)));
+                    Collections.<String, Object>emptyMap(), handler);
 
             byte[] message = saslClient.evaluateChallenge(new byte[0]);
             message = saslServer.evaluateResponse(message);
             try {
-                message = saslClient.evaluateChallenge(message);
+                saslClient.evaluateChallenge(message);
                 fail("Expected SaslException not thrown");
             } catch (SaslException expected) {
             }
@@ -735,22 +783,26 @@ public class _NewOTPTest extends BaseTestCase {
 
     @Test
     public void testAuthenticationWithLongSeed() throws Exception {
+        final String algorithm = ALGORITHM_OTP_MD5;
         final SaslClientFactory clientFactory = obtainSaslClientFactory(OTPSaslClientFactory.class);
         assertNotNull(clientFactory);
 
-        PasswordFactory passwordFactory = PasswordFactory.getInstance(ALGORITHM_OTP_MD5);
+        PasswordFactory passwordFactory = PasswordFactory.getInstance(algorithm);
         final Password password = passwordFactory.generatePassword(new OneTimePasswordSpec(CodePointIterator.ofString("505d889f90085847").hexDecode().drain(),
                 "thisSeedIsTooLong".getBytes(StandardCharsets.US_ASCII), 500));
         final SaslServerBuilder.BuilderReference<Closeable> closeableReference = new SaslServerBuilder.BuilderReference<>();
         try {
             final SaslServer saslServer = createSaslServer(password, closeableReference, null);
 
+            final CallbackHandler handler =
+                    createClientCallbackHandler(algorithm, "userName", "This is a test.", ResponseFormat.PASSPHRASE, getResponseTypeChoiceIndex(HEX_RESPONSE),
+                            false, null, null, null);
             final SaslClient saslClient = clientFactory.createSaslClient(new String[]{SaslMechanismInformation.Names.OTP}, null, "test", "testserver1.example.com",
-                Collections.<String, Object>emptyMap(), new OTPClientCallbackHandler("This is a test.", null, getResponseTypeChoiceIndex(HEX_RESPONSE)));
+                    Collections.<String, Object>emptyMap(), handler);
 
             byte[] message = saslClient.evaluateChallenge(new byte[0]);
             try {
-                message = saslServer.evaluateResponse(message);
+                saslServer.evaluateResponse(message);
                 fail("Expected SaslException not thrown");
             } catch (SaslException expected) {
             }
@@ -761,23 +813,27 @@ public class _NewOTPTest extends BaseTestCase {
 
     @Test
     public void testAuthenticationWithNonAlphanumericSeed() throws Exception {
+        final String algorithm = ALGORITHM_OTP_MD5;
 
         final SaslClientFactory clientFactory = obtainSaslClientFactory(OTPSaslClientFactory.class);
         assertNotNull(clientFactory);
 
-        PasswordFactory passwordFactory = PasswordFactory.getInstance(ALGORITHM_OTP_MD5);
+        PasswordFactory passwordFactory = PasswordFactory.getInstance(algorithm);
         final Password password = passwordFactory.generatePassword(new OneTimePasswordSpec(CodePointIterator.ofString("505d889f90085847").hexDecode().drain(),
                 "A seed!".getBytes(StandardCharsets.US_ASCII), 500));
         final SaslServerBuilder.BuilderReference<Closeable> closeableReference = new SaslServerBuilder.BuilderReference<>();
         try {
             final SaslServer saslServer = createSaslServer(password, closeableReference, null);
 
+            final CallbackHandler handler =
+                    createClientCallbackHandler(algorithm, "userName", "This is a test.", ResponseFormat.PASSPHRASE, getResponseTypeChoiceIndex(HEX_RESPONSE),
+                            false, null, null, null);
             final SaslClient saslClient = clientFactory.createSaslClient(new String[]{SaslMechanismInformation.Names.OTP}, null, "test", "testserver1.example.com",
-                    Collections.<String, Object>emptyMap(), new OTPClientCallbackHandler("This is a test.", null, getResponseTypeChoiceIndex(HEX_RESPONSE)));
+                    Collections.<String, Object>emptyMap(), handler);
 
             byte[] message = saslClient.evaluateChallenge(new byte[0]);
             try {
-                message = saslServer.evaluateResponse(message);
+                saslServer.evaluateResponse(message);
                 fail("Expected SaslException not thrown");
             } catch (SaslException expected) {
             }
@@ -789,22 +845,26 @@ public class _NewOTPTest extends BaseTestCase {
 
     @Test
     public void testAuthenticationWithInvalidSequenceNumber() throws Exception {
+        final String algorithm = ALGORITHM_OTP_MD5;
         final SaslClientFactory clientFactory = obtainSaslClientFactory(OTPSaslClientFactory.class);
         assertNotNull(clientFactory);
 
-        PasswordFactory passwordFactory = PasswordFactory.getInstance(ALGORITHM_OTP_MD5);
+        PasswordFactory passwordFactory = PasswordFactory.getInstance(algorithm);
         final Password password = passwordFactory.generatePassword(new OneTimePasswordSpec(CodePointIterator.ofString("505d889f90085847").hexDecode().drain(),
                 "ke1234".getBytes(StandardCharsets.US_ASCII), 0));
         final SaslServerBuilder.BuilderReference<Closeable> closeableReference = new SaslServerBuilder.BuilderReference<>();
         try {
             final SaslServer saslServer = createSaslServer(password, closeableReference, null);
 
+            final CallbackHandler handler =
+                    createClientCallbackHandler(algorithm, "userName", "This is a test.", ResponseFormat.PASSPHRASE, getResponseTypeChoiceIndex(HEX_RESPONSE),
+                            false, null, null, null);
             final SaslClient saslClient = clientFactory.createSaslClient(new String[]{SaslMechanismInformation.Names.OTP}, null, "test", "testserver1.example.com",
-                Collections.<String, Object>emptyMap(), new OTPClientCallbackHandler("This is a test.", null, getResponseTypeChoiceIndex(HEX_RESPONSE)));
+                    Collections.<String, Object>emptyMap(), handler);
 
             byte[] message = saslClient.evaluateChallenge(new byte[0]);
             try {
-                message = saslServer.evaluateResponse(message);
+                saslServer.evaluateResponse(message);
                 fail("Expected SaslException not thrown");
             } catch (SaslException expected) {
             }
@@ -815,18 +875,22 @@ public class _NewOTPTest extends BaseTestCase {
 
     @Test
     public void testUnauthorizedAuthorizationId() throws Exception {
+        final String algorithm = ALGORITHM_OTP_SHA1;
         final SaslClientFactory clientFactory = obtainSaslClientFactory(OTPSaslClientFactory.class);
         assertNotNull(clientFactory);
 
-        PasswordFactory passwordFactory = PasswordFactory.getInstance(ALGORITHM_OTP_SHA1);
+        PasswordFactory passwordFactory = PasswordFactory.getInstance(algorithm);
         final Password password = passwordFactory.generatePassword(new OneTimePasswordSpec(CodePointIterator.ofString("103029b112deb117").hexDecode().drain(),
                 "TeSt".getBytes(StandardCharsets.US_ASCII), 100));
         final SaslServerBuilder.BuilderReference<Closeable> closeableReference = new SaslServerBuilder.BuilderReference<>();
         try {
             final SaslServer saslServer = createSaslServer(password, closeableReference, null);
 
-            final SaslClient saslClient = clientFactory.createSaslClient(new String[] { SaslMechanismInformation.Names.OTP }, "wrongName", "test", "testserver1.example.com",
-                    Collections.<String, Object>emptyMap(), new OTPClientCallbackHandler("This is a test.", null, getResponseTypeChoiceIndex(HEX_RESPONSE)));
+            final CallbackHandler handler =
+                    createClientCallbackHandler(algorithm, "userName", "This is a test.", ResponseFormat.PASSPHRASE, getResponseTypeChoiceIndex(HEX_RESPONSE),
+                            false, null, null, null);
+            final SaslClient saslClient = clientFactory.createSaslClient(new String[]{SaslMechanismInformation.Names.OTP}, "wrongName", "test", "testserver1.example.com",
+                    Collections.<String, Object>emptyMap(), handler);
 
             byte[] message = saslClient.evaluateChallenge(new byte[0]);
             message = saslServer.evaluateResponse(message);
@@ -882,59 +946,58 @@ public class _NewOTPTest extends BaseTestCase {
         };
     }
 
-    private class OTPClientCallbackHandler implements CallbackHandler {
-        private final String passPhrase;
-        private final String multiWordOTP;
-        private final int responseTypeChoice;
-        private boolean currentPasswordProvided;
-        private final byte[] newSeed = "ke1235".getBytes(StandardCharsets.US_ASCII);
-        private final String newHexOTP = "3712dcb4aa5316c1";
-        private final String newMultiWordOTP = "RED HERD NOW BEAN PA BURG";
-        private final String newPassPhrase = "My new pass phrase";
+    private enum ResponseFormat {
+        PASSPHRASE,
+        MULTIWORD
+    }
+
+    private CallbackHandler createClientCallbackHandler(String algorithm, String username, String passPhrase,
+                                                        ResponseFormat responseFormat, int responseChoice,
+                                                        boolean useNewPassPhrase, String newPassPhrase, byte[] newSeed,
+                                                        String newOTP) throws Exception {
+        OTPPasswordAndParameterCallbackHandler pwdAndParam =
+                new OTPPasswordAndParameterCallbackHandler(passPhrase, responseFormat,
+                        useNewPassPhrase, newSeed, newPassPhrase, newOTP);
+        final AuthenticationContext context = AuthenticationContext.empty()
+                .with(
+                        MatchRule.ALL,
+                        AuthenticationConfiguration.EMPTY
+                                .useName(username)
+                                .useExtendedChoiceCallback(responseChoice)
+                                .usePartialCallbackHandler(pwdAndParam, ParameterCallback.class, PasswordCallback.class)
+                                .allowSaslMechanisms(algorithm));
+
+
+        return ClientUtils.getCallbackHandler(new URI("seems://irrelevant"), context);
+    }
+
+    private static class OTPPasswordAndParameterCallbackHandler implements CallbackHandler {
+        private final ResponseFormat responseFormat;
         private final boolean useNewPassPhrase;
-        private boolean useMultiWordOTP;
+        private final String passPhrase;
+        private final byte[] newSeed;
+        private final String newPassPhrase;
+        private final String newOTP;
+        private boolean currentPasswordProvided;
 
-        public OTPClientCallbackHandler(final String passPhrase, final String multiWordOTP) throws SaslException {
-            this(passPhrase, multiWordOTP, -1, false);
-        }
-
-        public OTPClientCallbackHandler(final String passPhrase, final String multiWordOTP, final int responseTypeChoice) throws SaslException {
-            this(passPhrase, multiWordOTP, responseTypeChoice, false);
-        }
-
-        public OTPClientCallbackHandler(final String passPhrase, final String multiWordOTP, final boolean useNewPassPhrase) throws SaslException {
-            this(passPhrase, multiWordOTP, -1, useNewPassPhrase);
-        }
-
-        public OTPClientCallbackHandler(final String passPhrase, final String multiWordOTP, final int responseTypeChoice, final boolean useNewPassPhrase) throws SaslException {
-            this.passPhrase = passPhrase;
-            this.multiWordOTP = multiWordOTP;
-            this.responseTypeChoice = responseTypeChoice;
-            if (responseTypeChoice == -1) {
-                useMultiWordOTP = true;
-            } else {
-                useMultiWordOTP = (responseTypeChoice == getResponseTypeChoiceIndex(WORD_RESPONSE)) || (responseTypeChoice == getResponseTypeChoiceIndex(INIT_WORD_RESPONSE));
-            }
+        private OTPPasswordAndParameterCallbackHandler(String passPhrase, ResponseFormat responseFormat,
+                                                       boolean useNewPassPhrase, byte[] newSeed, String newPassPhrase,
+                                                       String newOTP) {
+            this.responseFormat = responseFormat;
             this.useNewPassPhrase = useNewPassPhrase;
+            this.passPhrase = passPhrase;
+            this.newSeed = newSeed;
+            this.newPassPhrase = newPassPhrase;
+            this.newOTP = newOTP;
         }
 
         @Override
-        public void handle(Callback[] callbacks) throws UnsupportedCallbackException {
-            System.out.println("CLIENT " + Arrays.toString(callbacks));
-            byte[] seed;
+        public void handle(Callback[] callbacks) throws IOException, UnsupportedCallbackException {
             for (Callback callback : callbacks) {
-                if (callback instanceof NameCallback) {
-                    ((NameCallback) callback).setName("userName");
-                } else if (callback instanceof ExtendedChoiceCallback) {
-                    if (responseTypeChoice != -1) {
-                        ExtendedChoiceCallback extendedChoiceCallback = (ExtendedChoiceCallback) callback;
-                        extendedChoiceCallback.setSelectedIndex(responseTypeChoice);
-                    }
-                } else if (callback instanceof ParameterCallback) {
+                if (callback instanceof ParameterCallback) {
                     ParameterCallback parameterCallback = (ParameterCallback) callback;
                     OneTimePasswordAlgorithmSpec spec = (OneTimePasswordAlgorithmSpec) parameterCallback.getParameterSpec();
                     if (currentPasswordProvided) {
-                        System.out.println("----> Reading cpwdProvided true");
                         // Set new password parameters
                         OneTimePasswordAlgorithmSpec newSpec = new OneTimePasswordAlgorithmSpec(spec.getAlgorithm(), newSeed, spec.getSequenceNumber());
                         parameterCallback.setParameterSpec(newSpec);
@@ -942,8 +1005,7 @@ public class _NewOTPTest extends BaseTestCase {
                 } else if (callback instanceof PasswordCallback) {
                     PasswordCallback passwordCallback = (PasswordCallback) callback;
                     if (passwordCallback.getPrompt().equals("Pass phrase")) {
-                        if (passPhrase != null) {
-                            System.out.println("----> Setting cpwdProvided true a)");
+                        if (responseFormat == ResponseFormat.PASSPHRASE) {
                             currentPasswordProvided = true;
                             passwordCallback.setPassword(passPhrase.toCharArray());
                         }
@@ -952,23 +1014,15 @@ public class _NewOTPTest extends BaseTestCase {
                             passwordCallback.setPassword(newPassPhrase.toCharArray());
                         }
                     } else if (passwordCallback.getPrompt().equals("One-time password")) {
-                        if (multiWordOTP != null) {
-                            System.out.println("----> Setting cpwdProvided true b)");
+                        if (responseFormat == ResponseFormat.MULTIWORD) {
                             currentPasswordProvided = true;
-                            passwordCallback.setPassword(multiWordOTP.toCharArray());
+                            passwordCallback.setPassword(passPhrase.toCharArray());
                         }
                     } else if (passwordCallback.getPrompt().equals("New one-time password")) {
-                        if (useMultiWordOTP) {
-                            passwordCallback.setPassword(newMultiWordOTP.toCharArray());
-                        } else {
-                            passwordCallback.setPassword(newHexOTP.toCharArray());
-                        }
+                        passwordCallback.setPassword(newOTP.toCharArray());
                     }
-                } else {
-                    CallbackUtil.unsupported(callback);
                 }
             }
         }
     }
-
 }
