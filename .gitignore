@@ -42,3 +42,4 @@ hs_err_pid*.log
 /.m2
 settings.xml
 .codenvy
+xml-client-keystore-credential-test.keystore

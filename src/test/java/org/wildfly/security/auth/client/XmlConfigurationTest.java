@@ -18,7 +18,8 @@
 
 package org.wildfly.security.auth.client;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 import java.io.ByteArrayInputStream;
 import java.net.URI;
